@@ -1,25 +1,88 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+title: "Activity Analysis"
+output: md_document
 ---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+```{r Load Package}
+library(dplyr)
+library(chron)
+library(ggplot2)
+```
 
+```{r Read data}
+activity_data<-read.csv("activity.csv")
+```
 
-## Loading and preprocessing the data
+```{r Preprocess data}
+activity_data$date<-as.Date(activity_data$date,"%Y-%m-%d")
+```
 
+```{r Calculate Mean}
+#Remove NA values
+activity_data1<-activity_data[complete.cases(activity_data),]
+a<-activity_data1%>%group_by(date)%>%summarize(steps=sum(steps))
+hist(a$steps,xlab = "Steps",ylab = "Frequency",main=" Histogram of Total number of steps taken each day")
+a1<-mean(a$steps)
+a2<-median(a$steps)
+```
+##Mean  of the total number of steps taken per day
+```{r}
+a1
+```
+##Median of the total number of steps taken per day
+```{r}
+a2
+```
+##Average daily activity pattern
+```{r}
+a3<-activity_data1%>%group_by(interval)%>%summarize(steps=sum(steps))
+plot(a3$interval,a3$steps,type="l",xlab="Interval",ylab = "Steps",main = "Steps vs Time Interval")
+```
 
-
-## What is mean total number of steps taken per day?
-
-
-
-## What is the average daily activity pattern?
-
-
-
-## Imputing missing values
-
-
-
-## Are there differences in activity patterns between weekdays and weekends?
+# Interval containing the maximum number of steps
+```{r}
+a3[a3$steps==max(a3$steps),"interval"]
+```
+##Total number of missing values in the dataset
+```{r}
+nrow(activity_data[is.na(activity_data$steps),])
+```
+##Fill missing values with mean of that day
+```{r}
+a4<-activity_data1%>%group_by(interval)%>%summarize(steps=mean(steps))
+merged_data<-merge(activity_data,a4,by.x = "interval",by.y = "interval")
+merged_data$steps<-ifelse(is.na(merged_data$steps.x),merged_data$steps.y,merged_data$steps.x)
+```
+##New dataset that is equal to the original dataset but with the missing data filled in
+```{r}
+new_dataset<-merged_data[,c("date","interval","steps")]
+head(new_dataset)
+```
+##histogram of the total number of steps taken each day 
+```{r}
+new_hist<-new_dataset%>%group_by(date)%>%summarize(steps=sum(steps))
+hist(new_hist$steps,xlab="Steps",ylab="Frequency",main = "Histogram  Total number of steps taken each day")
+```
+##Mean of total number of steps taken per day
+```{r}
+mean(new_hist$steps)
+```
+##Median of total number of steps taken per day
+```{r}
+median(new_hist$steps)
+```
+## Impact of imputing missing data on the estimates of the total daily number of steps
+```{r}
+#For Mean
+mean(new_hist$steps)-a1
+#For Median
+median(new_hist$steps)-a2
+```
+##Differences in activity patterns between weekdays and weekends
+```{r}
+new_dataset$day<-ifelse(is.weekend(new_dataset$date),"weekend","weekday")
+new_plot<-new_dataset%>%group_by(interval,day)%>%summarize(steps=mean(steps))
+ggplot(new_plot,aes(x=interval,y=steps))+geom_line()+facet_wrap(~day)+labs(x="Interval",y="Steps")
+```
